@@ -17,7 +17,6 @@ module.exports = {
     },
     dialectOptions: {
       timezone: 'America/Sao_Paulo',
-      ssl: 'Amazon RDS',
     },
     timezone: 'America/Sao_Paulo'
   }

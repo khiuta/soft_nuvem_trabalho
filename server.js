@@ -5,9 +5,7 @@ const { sequelize } = db;
 
 const port = 5000;
 
-app.listen(port, () => {
+app.listen(port, async () => {
+    await sequelize.authenticate();
     console.log(`Listening on port: ${port}`)
-    if(sequelize.authenticate()) {
-        console.log('authenticated')
-    }
 })
