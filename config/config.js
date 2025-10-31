@@ -6,6 +6,7 @@ module.exports = {
     password: process.env.PASSWORD,
     database: process.env.DATABASE,
     host: process.env.HOST,
+    port: process.env.PORT,
     dialect: 'postgres',
     define: {
       timestamps: true,
@@ -15,7 +16,8 @@ module.exports = {
       updatedAt: 'updated_at'
     },
     dialectOptions: {
-      timezone: 'America/Sao_Paulo'
+      timezone: 'America/Sao_Paulo',
+      ssl: 'Amazon RDS',
     },
     timezone: 'America/Sao_Paulo'
   }
