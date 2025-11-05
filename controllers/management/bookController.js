@@ -3,11 +3,21 @@ import axios from 'axios';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 import upload from '../../config/multer';
 import excel from 'node-xlsx';
 
 const { Book } = db;
+//Conexão com o S3
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
+});
+const S3_BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 
 class BookController {
   async store(req, res) {
@@ -77,8 +87,19 @@ class BookController {
         .jpeg({ quality: 100, progressive: true })
         .toBuffer();
 
-      const imagePath = path.join('./', 'public', '/images', `${book[0].id}.jpg`);
-      fs.writeFileSync(imagePath, resizedImageBuffer);
+      /*const imagePath = path.join('./', 'public', '/images', `${book[0].id}.jpg`);
+      fs.writeFileSync(imagePath, resizedImageBuffer);*/
+      
+      // UPLOAD PARA O S3 (STORE)
+      const imageKey = `capas/livro-${book[0].id}-${Date.now()}.jpg`;
+      const uploadCommand = new PutObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: imageKey,
+          Body: resizedImageBuffer,
+          ContentType: 'image/jpeg'
+      });
+      await s3Client.send(uploadCommand);
+      const imagePath = `https://${S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${imageKey}`;
 
       const newBook = await Book.create({ title, author, publisher, edition, release_year, image_path: imagePath, quantity });
 
@@ -180,6 +201,7 @@ class BookController {
               }
 
               let imagePath = path.join('./', 'public', '/images', 'logo-png.png'); // imagem padrão
+              //let imagePath = `https://SEU-BUCKET-NAME.s3.SEU-REGION.amazonaws.com/logo-png.png`; (SUBSTITUIR PELO LINK DA IMAGEM PADRÃO NO S3 !!)
 
               // tenta baixar a imagem
               try {
@@ -200,8 +222,19 @@ class BookController {
                   .jpeg({ quality: 100, progressive: true })
                   .toBuffer();
 
-                imagePath = path.join('./', 'public', '/images', `${foundBook.id}.jpg`);
-                fs.writeFileSync(imagePath, resizedImageBuffer);
+                /*imagePath = path.join('./', 'public', '/images', `${foundBook.id}.jpg`);
+                fs.writeFileSync(imagePath, resizedImageBuffer);*/
+
+                // UPLOAD PARA O S3 (BULKSTORE)
+                const imageKey = `capas/livro-${foundBook.id}-${Date.now()}.jpg`;
+                const uploadCommand = new PutObjectCommand({
+                    Bucket: S3_BUCKET_NAME,
+                    Key: imageKey,
+                    Body: resizedImageBuffer,
+                    ContentType: 'image/jpeg'
+                });
+                await s3Client.send(uploadCommand);
+                imagePath = `https://${S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${imageKey}`;
 
               } catch (imageError) {
                 console.warn(`Falha ao baixar imagem para ${title}. Usando imagem padrão.`);
