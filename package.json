@@ -8,9 +8,13 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon server.js"
+    "dev": "concurrently \"nodemon server.js\" \"nodemon worker.js\""
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.926.0",
+    "@aws-sdk/client-s3": "^3.926.0",
+    "@aws-sdk/client-sqs": "^3.926.0",
+    "@aws-sdk/util-dynamodb": "^3.926.0",
     "axios": "^1.13.1",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -26,6 +30,7 @@
     "sharp": "^0.34.4"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.10",
     "sucrase": "^3.35.0"
   }

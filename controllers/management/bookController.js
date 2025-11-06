@@ -1,8 +1,18 @@
+require('dotenv').config();
+
 import db from '../../models';
 import axios from 'axios';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
+
+import { dynamoClient } from '../../lib/dynamoClient.js';
+import { PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { marshall } from '@aws-sdk/util-dynamodb';
+import { randomUUID } from 'crypto';
+
+import { sqsClient } from '../../lib/sqsClient.js';
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
 import upload from '../../config/multer';
 import excel from 'node-xlsx';
@@ -16,6 +26,7 @@ class BookController {
     } = req.body;
 
     try {
+      const SQS_QUEUE_URL = process.env.SQS_QUEUE_URL;
       // procura se o livro já existe no banco de dados
       const existingBook = await Book.findOne({
         where: {
@@ -27,62 +38,46 @@ class BookController {
       if (existingBook != null){
         // se o livro já existe, apenas atualiza sua quantidade
         const quantityToAdd = Number(quantity);
-        
+
         existingBook.quantity += quantityToAdd;
-        
+
         const updatedBook = await existingBook.save();
 
         return res.status(200).json(updatedBook);
-      }
+      } 
 
-      // procurando o livro na api do google pra puxar a imagem
-      const googleBooksApiUrl = `https://www.googleapis.com/books/v1/volumes?q=intitle:${title}`;
-      const response = await axios.get(googleBooksApiUrl);
+      const newBook = await Book.create({ title, author, publisher, edition, release_year, image_key: null, quantity });
 
-      if (!response.data.items || response.data.items.length === 0) {
-        return res.status(404).json({ error: 'Livro não encontrado na API do Google.' });
-      }
+      const sqsMessage = {
+        bookId: newBook.id,
+        title: newBook.title,
+        author: newBook.author,
+        publisher: newBook.publisher
+      };
 
-      let book = response.data.items;
-
-      book = book.filter(book =>
-        book.volumeInfo.authors && book.volumeInfo.authors.some(bookAuthor =>
-          bookAuthor.toLowerCase().includes(author.toLowerCase())
-        )
-      );
-
-      if (!book || book.length === 0) {
-        return res.status(404).json({ error: 'Livro não encontrado com esse autor.' });
-      }
-
-      if (!book[0].volumeInfo.imageLinks || !book[0].volumeInfo.imageLinks.thumbnail) {
-        return res.status(404).json({ error: 'Livro encontrado, mas não possui imagem de capa.' });
-      }
-
-      let imageUrl = book[0].volumeInfo.imageLinks.thumbnail;
-      imageUrl = imageUrl.replace('zoom=1', 'zoom=0');
-
-      const imageResponse = await axios({
-        url: imageUrl,
-        responseType: 'arraybuffer',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
-        }
+      await sqsClient.send(new SendMessageCommand({
+        QueueUrl: SQS_QUEUE_URL,
+        MessageBody: JSON.stringify(sqsMessage)
+      }));
+        
+      const logData = { title, author, publisher, edition, release_year, quantity };
+        
+      const item = {
+        logId: randomUUID(),
+        timestamp: new Date().toISOString(),
+        actionType: "CREATE_BOOK",
+        dataHandled: logData
+      };
+        
+      const command = new PutItemCommand({
+        TableName: "api-logs",
+        Item: marshall(item, { removeUndefinedValues: true })
       });
-
-      const buffer = Buffer.from(imageResponse.data, 'binary');
-
-      const resizedImageBuffer = await sharp(buffer)
-        .resize({ width: 100, height: 350, fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 100, progressive: true })
-        .toBuffer();
-
-      const imagePath = path.join('./', 'public', '/images', `${book[0].id}.jpg`);
-      fs.writeFileSync(imagePath, resizedImageBuffer);
-
-      const newBook = await Book.create({ title, author, publisher, edition, release_year, image_path: imagePath, quantity });
-
-      return res.status(200).json(newBook);
+        
+      await dynamoClient.send(command);
+      console.log("Log saved to DynamoDB");
+        
+      return res.status(201).json(newBook);
     } catch (error) {
       console.error(error); 
       return res.status(500).json({ 
