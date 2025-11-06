@@ -1,4 +1,5 @@
 import db from '../../models'
+import { logAction } from '../../services/LoggerService.js';
 
 const { Manager } = db;
 
@@ -18,6 +19,7 @@ class ManagerController{
       } else {
         const newManager = await Manager.create({ full_name, username, password });
 
+        await logAction('CREATE_MANAGER', { id: newManager.id, username: newManager.username });
         return res.status(200).json(newManager);
       }
     } catch (error) {
@@ -33,6 +35,7 @@ class ManagerController{
     try {
       const managers = await Manager.findAll();
 
+      await logAction('READ_ALL_MANAGERS', { count: managers.length });
       return res.status(200).json(managers);
     } catch (error) {
       console.error(error);

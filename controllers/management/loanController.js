@@ -1,6 +1,7 @@
 import db from '../../models'
 
 import { DateTime, Settings } from 'luxon';
+import { logAction } from '../../services/LoggerService.js';
 
 const { Loan } = db;
 
@@ -16,6 +17,7 @@ class LoanController {
 
       const newLoan = await Loan.create({ loan_date, return_date, book_id, student_id, returned: false, pendent: false });
 
+      await logAction('CREATE_LOAN', { id: newLoan.id, book_id: newLoan.book_id, student_id: newLoan.student_id });
       return res.status(200).json(newLoan);
     } catch (error) {
       console.error(error);
@@ -30,6 +32,7 @@ class LoanController {
     try {
       const loans = await Loan.findAll();
 
+      await logAction('READ_ALL_LOANS', { count: loans.length });
       return res.status(200).json(loans);
     } catch (error) {
       console.error(error);
@@ -59,6 +62,7 @@ class LoanController {
 
         const updatedLoan = await loanToUpdate.save();
 
+        await logAction('UPDATE_LOAN', { id: updatedLoan.id });
         return res.status(200).json(updatedLoan);
       } else {
         return res.status(404).json({ message: 'Esse empréstimo não existe.' });
