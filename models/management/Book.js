@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     publisher: DataTypes.STRING,
     edition: DataTypes.STRING,
     release_year: DataTypes.INTEGER,
-    image_path: DataTypes.STRING,
+    image_key: DataTypes.STRING,
     quantity: DataTypes.INTEGER,
     available: DataTypes.BOOLEAN
   }, {
