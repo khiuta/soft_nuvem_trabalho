@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { logAction } from '../../services/LoggerService.js';
 
 import upload from '../../config/multer';
 import excel from 'node-xlsx';
@@ -42,6 +43,7 @@ class BookController {
         
         const updatedBook = await existingBook.save();
 
+        await logAction('UPDATE_BOOK_QUANTITY', { id: updatedBook.id, new_quantity: updatedBook.quantity });
         return res.status(200).json(updatedBook);
       }
 
@@ -103,6 +105,7 @@ class BookController {
 
       const newBook = await Book.create({ title, author, publisher, edition, release_year, image_path: imagePath, quantity });
 
+      await logAction('CREATE_BOOK', { id: newBook.id, title: newBook.title });
       return res.status(200).json(newBook);
     } catch (error) {
       console.error(error); 
@@ -178,6 +181,7 @@ class BookController {
             if (existingBook) {
               existingBook.quantity += quantity;
               const updatedBook = await existingBook.save();
+              await logAction('UPDATE_BOOK_QUANTITY_BULK', { id: updatedBook.id, new_quantity: updatedBook.quantity });
               processedBooks.push(updatedBook);
             } 
             else {
@@ -249,6 +253,7 @@ class BookController {
                 image_path: imagePath,
                 quantity,
               });
+              await logAction('CREATE_BOOK_BULK', { id: newBook.id, title: newBook.title });
               processedBooks.push(newBook);
             }
           } catch (bookError) {
@@ -276,6 +281,7 @@ class BookController {
       const books = await Book.findAll();
 
       if(books){
+        await logAction('READ_ALL_BOOKS', { count: books.length });
         return res.status(200).json(books);
       } else {
         return res.status(200).json({message: 'Nenhum livro cadastrado.'});
@@ -311,6 +317,7 @@ class BookController {
 
         const updatedBook = await bookToUpdate.save();
 
+        await logAction('UPDATE_BOOK', { id: updatedBook.id });
         return res.status(200).json(updatedBook);
       } else {
         return res.status(404).json({message: 'Esse livro não existe no acervo.'});
