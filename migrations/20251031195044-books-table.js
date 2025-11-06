@@ -32,7 +32,7 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: true,
       },
-      image_path: {
+      image_key: {
         type: Sequelize.STRING,
         allowNull: true,
         defaultValue: '',
