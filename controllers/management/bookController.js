@@ -164,8 +164,7 @@ class BookController {
                 throw new Error('Livro encontrado, mas o autor não corresponde.');
               }
 
-              let imagePath = path.join('./', 'public', '/images', 'logo-png.png'); // imagem padrão
-              //let imagePath = `https://SEU-BUCKET-NAME.s3.SEU-REGION.amazonaws.com/logo-png.png`; (SUBSTITUIR PELO LINK DA IMAGEM PADRÃO NO S3 !!)
+              let imagePath = `https://SEU-BUCKET-NAME.s3.SEU-REGION.amazonaws.com/logo-png.png`;
 
               // tenta baixar a imagem
               try {
