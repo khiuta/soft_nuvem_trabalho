@@ -10,6 +10,7 @@ import { dynamoClient } from '../../lib/dynamoClient.js';
 import { PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { randomUUID } from 'crypto';
+import dynamoLogs from '../../lib/dynamoLogs.js';
 
 import { sqsClient } from '../../lib/sqsClient.js';
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
@@ -237,7 +238,17 @@ class BookController {
     try {
       const books = await Book.findAll();
 
-      if(books){
+      if(books.length() >> 0){
+        const item = dynamoLogs.get_all_books(books.length());
+
+        const command = new PutItemCommand({
+          TableName: "api-logs",
+          Item: marshall(item, { removeUndefinedValues: true })
+        })
+
+        await dynamoClient.send(command);
+        console.log("Log saved to DynamoDB.");
+        
         return res.status(200).json(books);
       } else {
         return res.status(200).json({message: 'Nenhum livro cadastrado.'});
@@ -261,6 +272,8 @@ class BookController {
         }
       });
 
+      logData = { id, title, author, publisher, edition, release_year, quantity, available };
+
       if(bookToUpdate){
         // se um novo dado foi passado, atualiza o dado, se não, permanece o mesmo de antes
         bookToUpdate.title = title ? title : bookToUpdate.title;
@@ -272,6 +285,12 @@ class BookController {
         bookToUpdate.available = available ? available : bookToUpdate.available;
 
         const updatedBook = await bookToUpdate.save();
+
+        const item = {
+          logId: randomUUID(),
+          timestamp: new Date().toISOString(),
+          actionType: "UPDATE BOOK"
+        }
 
         return res.status(200).json(updatedBook);
       } else {
