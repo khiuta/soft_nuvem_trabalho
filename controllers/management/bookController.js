@@ -9,7 +9,6 @@ import fs from 'fs';
 import { dynamoClient } from '../../lib/dynamoClient.js';
 import { PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
-import { randomUUID } from 'crypto';
 import dynamoLogs from '../../lib/dynamoLogs.js';
 
 import { sqsClient } from '../../lib/sqsClient.js';
@@ -60,15 +59,11 @@ class BookController {
         QueueUrl: SQS_QUEUE_URL,
         MessageBody: JSON.stringify(sqsMessage)
       }));
+      
+      const newBookId = newBook.id;
+      const logData = { newBookId, title, author, publisher, edition, release_year, quantity };
         
-      const logData = { title, author, publisher, edition, release_year, quantity };
-        
-      const item = {
-        logId: randomUUID(),
-        timestamp: new Date().toISOString(),
-        actionType: "CREATE_BOOK",
-        dataHandled: logData
-      };
+      const item = dynamoLogs.create_book(logData, true);
         
       const command = new PutItemCommand({
         TableName: "api-logs",
@@ -238,8 +233,9 @@ class BookController {
     try {
       const books = await Book.findAll();
 
-      if(books.length() >> 0){
-        const item = dynamoLogs.get_all_books(books.length());
+      if(books){
+        // se existe algum livro cadastrado
+        const item = dynamoLogs.get_all_books(books.length, true)
 
         const command = new PutItemCommand({
           TableName: "api-logs",
@@ -251,12 +247,64 @@ class BookController {
         
         return res.status(200).json(books);
       } else {
+        // se nao existe livro cadastrado
+        const item = dynamoLogs.get_all_books(0, false);
+
+        const command = new PutItemCommand({
+          TableName: "api-logs",
+          Item: marshall(item, { removeUndefinedValues: true })
+        });
+
+        await dynamoClient.send(command);
+        console.log("Log saved to DynamoDB.");
+
         return res.status(200).json({message: 'Nenhum livro cadastrado.'});
       }
     } catch (error) {
       console.error(error);
       return res.status(500).json({
         error: 'Ocorreu um erro no servidor.',
+        details: error.message
+      })
+    }
+  }
+
+  async show(req, res){
+    const { id } = req.params;
+
+    try {
+      const book = await Book.findOne({ where: { id }});
+
+      if(book){
+        // se um livro foi encontrado
+        const item = dynamoLogs.get_book(id, true);
+
+        const command = new PutItemCommand({
+          TableName: "api-logs",
+          Item: marshall(item, { removeUndefinedValues: true })
+        });
+
+        await dynamoClient.send(command);
+        console.log("Log saved to DynamoDB.");
+
+        return res.status(200).json(book);
+      } else {
+        const item = dynamoLogs.get_book(id, false);
+
+        const command = new PutItemCommand({
+          TableName: "api-logs",
+          Item: marshall(item, { removeUndefinedValues: true })
+        });
+
+        await dynamoClient.send(command);
+        console.log("Log saved to DynamoDB.");
+
+        return res.status(404).json("Book not found.");
+      }
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        error: 'Ocorreu um erro no servidor',
         details: error.message
       })
     }
@@ -286,14 +334,28 @@ class BookController {
 
         const updatedBook = await bookToUpdate.save();
 
-        const item = {
-          logId: randomUUID(),
-          timestamp: new Date().toISOString(),
-          actionType: "UPDATE BOOK"
-        }
+        const item = dynamoLogs.update_book(id, true);
+
+        const command = new PutItemCommand({
+          TableName: "api-logs",
+          Item: marshall(item, { removeUndefinedValues: true })
+        });
+
+        await dynamoClient.send(command);
+        console.log("Log saved to DynamoDB.");
 
         return res.status(200).json(updatedBook);
       } else {
+        const item = dynamoLogs.update_book(id, false);
+
+        const command = new PutItemCommand({
+          TableName: "api-logs",
+          Item: marshall(item, { removeUndefinedValues: true })
+        });
+
+        await dynamoClient.send(command);
+        console.log("Log saved to DynamoDB.");
+
         return res.status(404).json({message: 'Esse livro não existe no acervo.'});
       }
     } catch (error) {

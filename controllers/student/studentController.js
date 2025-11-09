@@ -21,13 +21,31 @@ class StudentController{
     }
   }
 
-  async indexOne(req, res) {
-    const { id } = req.params;
+  async index(req, res) {
+    try {
+      const students = await Student.findAll();
+
+      if(students.length > 0){
+        return res.status(200).json(students);
+      } else {
+        return res.status(404).json({ message: "Nenhum aluno cadastrado." });
+      }
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        error: "Ocorreu um erro no servidor.",
+        details: error.message
+      });
+    }
+  }
+
+  async show(req, res) {
+    const { matricula } = req.params;
 
     try {
       const student = await Student.findOne({
         where: {
-          id,
+          matricula,
         }
       });
 

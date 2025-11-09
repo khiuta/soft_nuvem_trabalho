@@ -20,15 +20,19 @@ module.exports = {
         type: Sequelize.DATE,
         allowNull: false,
       },
-      student_id: {
+      student_matricula: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: 'students',
-          key: 'id',
+          key: 'matricula',
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE',
+      },
+      student_name: {
+        type: Sequelize.STRING,
+        allowNull: false,
       },
       book_id: {
         type: Sequelize.INTEGER,
@@ -39,6 +43,10 @@ module.exports = {
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
+      },
+      book_name: {
+        type: Sequelize.STRING,
+        allowNull: false,
       },
       returned: {
         type: Sequelize.BOOLEAN,
