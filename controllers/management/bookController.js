@@ -1,24 +1,21 @@
 import db from '../../models';
 import axios from 'axios';
-import sharp from 'sharp';
-import path from 'path';
-import fs from 'fs';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { logAction } from '../../services/LoggerService.js';
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 
 import upload from '../../config/multer';
 import excel from 'node-xlsx';
 
 const { Book } = db;
-//Conexão com o S3
-const s3Client = new S3Client({
+
+const sqsClient = new SQSClient({
   region: process.env.AWS_REGION,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
   }
 });
-const S3_BUCKET_NAME = process.env.AWS_BUCKET_NAME;
+const SQS_QUEUE_URL = process.env.AWS_SQS_QUEUE_URL;
 
 class BookController {
   async store(req, res) {
@@ -27,86 +24,49 @@ class BookController {
     } = req.body;
 
     try {
-      // procura se o livro já existe no banco de dados
-      const existingBook = await Book.findOne({
-        where: {
-          title: title,
-          author: author,
-          publisher: publisher
-        }
-      });
+      // 1. Verifica se o livro já existe
+      const existingBook = await Book.findOne({ where: { title, author, publisher } });
+
       if (existingBook != null){
-        // se o livro já existe, apenas atualiza sua quantidade
-        const quantityToAdd = Number(quantity);
-        
-        existingBook.quantity += quantityToAdd;
-        
+        // Se existe, só atualiza a quantidade (como antes)
+        existingBook.quantity += Number(quantity);
         const updatedBook = await existingBook.save();
 
         await logAction('UPDATE_BOOK_QUANTITY', { id: updatedBook.id, new_quantity: updatedBook.quantity });
         return res.status(200).json(updatedBook);
       }
 
-      // procurando o livro na api do google pra puxar a imagem
-      const googleBooksApiUrl = `https://www.googleapis.com/books/v1/volumes?q=intitle:${title}`;
-      const response = await axios.get(googleBooksApiUrl);
-
-      if (!response.data.items || response.data.items.length === 0) {
-        return res.status(404).json({ error: 'Livro não encontrado na API do Google.' });
-      }
-
-      let book = response.data.items;
-
-      book = book.filter(book =>
-        book.volumeInfo.authors && book.volumeInfo.authors.some(bookAuthor =>
-          bookAuthor.toLowerCase().includes(author.toLowerCase())
-        )
-      );
-
-      if (!book || book.length === 0) {
-        return res.status(404).json({ error: 'Livro não encontrado com esse autor.' });
-      }
-
-      if (!book[0].volumeInfo.imageLinks || !book[0].volumeInfo.imageLinks.thumbnail) {
-        return res.status(404).json({ error: 'Livro encontrado, mas não possui imagem de capa.' });
-      }
-
-      let imageUrl = book[0].volumeInfo.imageLinks.thumbnail;
-      imageUrl = imageUrl.replace('zoom=1', 'zoom=0');
-
-      const imageResponse = await axios({
-        url: imageUrl,
-        responseType: 'arraybuffer',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
-        }
+      // 2. CRIA O LIVRO (Novo) com status de processamento
+      // (Note que removemos fs.writeFileSync e o S3 daqui)
+      const newBook = await Book.create({ 
+        title, 
+        author, 
+        publisher, 
+        edition, 
+        release_year, 
+        image_path: 'PENDING_PROCESSING', // <-- Indica que a imagem está na fila
+        quantity 
       });
 
-      const buffer = Buffer.from(imageResponse.data, 'binary');
+      // 3. ENVIA A MENSAGEM PARA O SQS
+      const messageBody = {
+        bookId: newBook.id,
+        title: newBook.title,
+        author: newBook.author
+      };
 
-      const resizedImageBuffer = await sharp(buffer)
-        .resize({ width: 100, height: 350, fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 100, progressive: true })
-        .toBuffer();
-
-      /*const imagePath = path.join('./', 'public', '/images', `${book[0].id}.jpg`);
-      fs.writeFileSync(imagePath, resizedImageBuffer);*/
-      
-      // UPLOAD PARA O S3 (STORE)
-      const imageKey = `capas/livro-${book[0].id}-${Date.now()}.jpg`;
-      const uploadCommand = new PutObjectCommand({
-          Bucket: S3_BUCKET_NAME,
-          Key: imageKey,
-          Body: resizedImageBuffer,
-          ContentType: 'image/jpeg'
+      const command = new SendMessageCommand({
+        QueueUrl: SQS_QUEUE_URL,
+        MessageBody: JSON.stringify(messageBody)
       });
-      await s3Client.send(uploadCommand);
-      const imagePath = `https://${S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${imageKey}`;
+      await sqsClient.send(command);
 
-      const newBook = await Book.create({ title, author, publisher, edition, release_year, image_path: imagePath, quantity });
+      // 4. Loga a criação
+      await logAction('CREATE_BOOK_PENDING', { id: newBook.id, title: newBook.title });
 
-      await logAction('CREATE_BOOK', { id: newBook.id, title: newBook.title });
-      return res.status(200).json(newBook);
+      // 5. Responde (202 Accepted = "Aceito, processando em segundo plano")
+      return res.status(202).json(newBook); 
+
     } catch (error) {
       console.error(error); 
       return res.status(500).json({ 
