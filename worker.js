@@ -1,6 +1,6 @@
 import axios from 'axios';
 import sharp from 'sharp';
-import db from './models';
+import db from './models/index.js';
 import { s3Client } from './lib/s3Client';
 import { sqsClient } from './lib/sqsClient';
 import { ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
