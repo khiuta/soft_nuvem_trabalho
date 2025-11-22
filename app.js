@@ -38,7 +38,7 @@ class App {
     }
 
     routes() {
-	this.app.get('/healt', (req, res) => {
+	this.app.get('/health', (req, res) => {
 		return res.status(200).json('OK');
 	});
         this.app.use('/book', bookRoutes);
