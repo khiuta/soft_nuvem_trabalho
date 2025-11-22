@@ -38,6 +38,9 @@ class App {
     }
 
     routes() {
+	this.app.get('/healt', (req, res) => {
+		return res.status(200).json('OK');
+	});
         this.app.use('/book', bookRoutes);
         this.app.use('/student', studentRoutes);
         this.app.use('/manager', managerRoutes);
