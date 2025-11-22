@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-import db from '../../models';
+import db from '../../models/index.js';
 import axios from 'axios';
 import sharp from 'sharp';
 import path from 'path';
@@ -14,7 +14,7 @@ import dynamoLogs from '../../lib/dynamoLogs.js';
 import { sqsClient } from '../../lib/sqsClient.js';
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
-import upload from '../../config/multer';
+import upload from '../../config/multer.js';
 import excel from 'node-xlsx';
 
 const { Book } = db;

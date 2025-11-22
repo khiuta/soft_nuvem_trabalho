@@ -1,10 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 
-import bookRoutes from './routes/management/bookRoutes'
-import studentRoutes from './routes/student/studentRoutes'
-import managerRoutes from './routes/management/managerRoutes'
-import loanRoutes from './routes/management/loanRoutes'
+import bookRoutes from './routes/management/bookRoutes.js'
+import studentRoutes from './routes/student/studentRoutes.js'
+import managerRoutes from './routes/management/managerRoutes.js'
+import loanRoutes from './routes/management/loanRoutes.js'
 
 const allowedOrigins = [
     'http://localhost:3000'
@@ -38,9 +38,9 @@ class App {
     }
 
     routes() {
-	this.app.get('/health', (req, res) => {
-		return res.status(200).json('OK');
-	});
+        this.app.get('/health', (req, res) => {
+            return res.status(200).send('OK');
+        });
         this.app.use('/book', bookRoutes);
         this.app.use('/student', studentRoutes);
         this.app.use('/manager', managerRoutes);

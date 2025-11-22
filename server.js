@@ -1,5 +1,5 @@
-import app from './app'
-import db from './models'
+import app from './app.js'
+import db from './models/index.js'
 
 const { sequelize } = db;
 

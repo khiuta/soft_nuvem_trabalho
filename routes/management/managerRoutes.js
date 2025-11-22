@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import managerController from '../../controllers/management/managerController';
+import managerController from '../../controllers/management/managerController.js';
 
 const router = Router();
 

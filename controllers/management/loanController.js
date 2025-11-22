@@ -1,4 +1,4 @@
-import db from '../../models'
+import db from '../../models/index.js'
 
 import { DateTime, Settings } from 'luxon';
 
