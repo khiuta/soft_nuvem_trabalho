@@ -1,4 +1,4 @@
-require('dotenv').config();
+import 'dotenv/config';
 
 import db from '../../models/index.js';
 import axios from 'axios';
@@ -367,7 +367,44 @@ class BookController {
     }
   }
 
+  async remove(req, res){
+    const { id, qtt } = req.body;
 
+    try {
+      const bookToUpdate = await Book.findOne({
+        where: {
+          id,
+        }
+      });
+
+      // prevent negative book quantity
+      bookToUpdate.quantity = Math.max(0, bookToUpdate.quantity - qtt);
+
+      const updatedBook = await bookToUpdate.save();
+
+      const item = dynamoLogs.update_book(id, true);
+
+      const command = new PutItemCommand({
+        TableName: "api-logs",
+        Item: marshall(item, { removeUndefinedValues: true })
+      });
+
+      await dynamoClient.send(command);
+      console.log("Log saved to DynamoDB.");
+
+      return res.status(200).json(updatedBook);
+    } catch(error) {
+      return res.status(500).json({
+        error: 'Ocorreu um erro no servidor.',
+        details: error.message
+      })
+    }
+  }
+
+  async test_index(req, res){
+    const books = await Book.findAll();
+    return res.status(200).json({books});
+  }
 }
 
 export default new BookController();

@@ -94,6 +94,26 @@ class StudentController{
       });
     }
   }
+
+  async remove(req, res) {
+    const { id } = req.params;
+
+    try {
+      const studentToRemove = await Student.destroy({
+        where: {
+          id,
+        }
+      });
+
+      return res.status(200).json({ studentToRemove });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        error: 'Ocorreu um erro no servidor.',
+        details: error.message
+      });
+    }
+  }
 }
 
 export default new StudentController();

@@ -26,6 +26,7 @@ class LoanController {
           publisher: book_publisher
         }
       })
+
       const book_id = book.id;
       const newLoan = await Loan.create({ loan_date, return_date, book_id, student_matricula, returned: false, pendent: false, book_name, student_name });
 
@@ -133,6 +134,31 @@ class LoanController {
         return res.status(404).json({ message: 'Esse empréstimo não existe.' });
       }
     } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        error: 'Ocorreu um erro no servidor.',
+        details: error.message
+      });
+    }
+  }
+
+  async devolution(req, res){
+    const { id } = req.params;
+
+    try {
+      const loanToReturn = await Loan.findOne({
+        where: {
+          id,
+        }
+      });
+
+      if(loanToReturn.returned == false) loanToReturn.returned = true;
+      else return res.status(400).json({ message: 'Esse empréstimo já foi retornado.' });
+
+      const loanUpdated = await loanToReturn.save();
+
+      return res.status(200).json({ loanUpdated });
+    } catch (error){
       console.error(error);
       return res.status(500).json({
         error: 'Ocorreu um erro no servidor.',
