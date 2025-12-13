@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import { s3Client } from './lib/s3Client.js';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 import bookRoutes from './routes/management/bookRoutes.js'
 import studentRoutes from './routes/student/studentRoutes.js'
@@ -12,7 +14,7 @@ const allowedOrigins = [
 
 const corsOptions = {
     origin: function (origin, callback) {
-    // Permite requisições sem 'origin' (como apps mobile ou Postman)
+    // allow requests without origin (like mobile and Postman)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) === -1) {
@@ -45,6 +47,17 @@ class App {
         this.app.use('/student', studentRoutes);
         this.app.use('/manager', managerRoutes);
         this.app.use('/loan', loanRoutes);
+        this.app.use('/minio', async (req, res) => {
+            await s3Client.send(
+                        new PutObjectCommand({
+                        Bucket: 'bibliotech-minio-storage',
+                        Key: 'minio_test.txt',
+                        Body: 'minio is working! :)',
+                        ContentType: 'text/plain'
+                        }),
+                    ).then(
+            res.status(200).json({message: 'file uploaded'}));
+        })
     }
 }
 
