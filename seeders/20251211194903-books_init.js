@@ -36,6 +36,22 @@ module.exports = {
     release_year: 2019,
     quantity: 20,
     available: true
+   }, {
+    title: 'Locke & Key/The Sandman Universe: Hell & Gone (2021-) #2',
+    author: 'Joe Hill',
+    publisher: 'DC Comics',
+    edition: null,
+    release_year: 2021,
+    quantity: 20,
+    available: true
+   }, {
+    title: 'Locke & Key: The Guide to Known Keys',
+    author: 'Joe Hill',
+    publisher: 'IDW Publishing',
+    edition: null,
+    release_year: 2021,
+    quantity: 20,
+    available: true
    }], {});
   },
 

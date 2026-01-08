@@ -62,12 +62,12 @@ const processMessage = async (data) => {
 
     const resizedImageBuffer = await sharp(buffer)
       .resize({
-        width: 100,
-        height: 350,
+        width: 400,
+        height: 600,
         fit: "inside",
         withoutEnlargement: true,
       })
-      .jpeg({ quality: 100, progressive: true })
+      .jpeg({ quality: 80, progressive: true })
       .toBuffer();
 
     const s3Key = foundCover
