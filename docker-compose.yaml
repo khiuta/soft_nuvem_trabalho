@@ -17,31 +17,51 @@ services:
       timeout: 20s
       retries: 3
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: bibliotech-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   web:
     build: .
     ports:
-    - "8000:8080"
+      - "8000:8080"
     environment:
       DB_HOST: ${DB_HOST}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_PORT: ${DB_PORT}
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT:
+        http://minio:9000
         # same credentials as in the minio service above
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
+
+      RABBITMQ_URL: amqp://user:password@rabbitmq:5672
 
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
       AWS_REGION: us-east-1
-      
+
       SQS_QUEUE_URL: ${SQS_QUEUE_URL}
     depends_on:
       db:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   db:
