@@ -2,8 +2,9 @@ import axios from 'axios';
 import sharp from 'sharp';
 import db from './models/index.js';
 import { s3Client } from './lib/s3Client.js';
-import { sqsClient } from './lib/sqsClient.js';
-import { ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
+//import { sqsClient } from './lib/sqsClient.js';
+//import { ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
+import { consumeQueue } from './lib/rabbitmqClient.js';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 const SQS_QUEUE_URL = process.env.SQS_QUEUE_URL;

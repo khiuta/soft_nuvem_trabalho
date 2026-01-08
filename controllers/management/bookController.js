@@ -1,4 +1,4 @@
-require('dotenv').config();
+import 'dotenv/config';
 
 import db from '../../models/index.js';
 import axios from 'axios';
@@ -11,8 +11,9 @@ import { PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import dynamoLogs from '../../lib/dynamoLogs.js';
 
-import { sqsClient } from '../../lib/sqsClient.js';
-import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+//import { sqsClient } from '../../lib/sqsClient.js';
+//import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { sendToQueue } from '../../lib/rabbitmqClient.js';
 
 import upload from '../../config/multer.js';
 import excel from 'node-xlsx';
@@ -26,7 +27,6 @@ class BookController {
     } = req.body;
 
     try {
-      const SQS_QUEUE_URL = process.env.SQS_QUEUE_URL;
       // procura se o livro já existe no banco de dados
       const existingBook = await Book.findOne({
         where: {
@@ -48,17 +48,14 @@ class BookController {
 
       const newBook = await Book.create({ title, author, publisher, edition, release_year, image_key: null, quantity });
 
-      const sqsMessage = {
+      const workerMessage = {
         bookId: newBook.id,
         title: newBook.title,
         author: newBook.author,
         publisher: newBook.publisher
       };
 
-      await sqsClient.send(new SendMessageCommand({
-        QueueUrl: SQS_QUEUE_URL,
-        MessageBody: JSON.stringify(sqsMessage)
-      }));
+      await sendToQueue(workerMessage);
       
       const newBookId = newBook.id;
       const logData = { newBookId, title, author, publisher, edition, release_year, quantity };
@@ -367,7 +364,44 @@ class BookController {
     }
   }
 
+  async remove(req, res){
+    const { id, qtt } = req.body;
 
+    try {
+      const bookToUpdate = await Book.findOne({
+        where: {
+          id,
+        }
+      });
+
+      // prevent negative book quantity
+      bookToUpdate.quantity = Math.max(0, bookToUpdate.quantity - qtt);
+
+      const updatedBook = await bookToUpdate.save();
+
+      const item = dynamoLogs.update_book(id, true);
+
+      const command = new PutItemCommand({
+        TableName: "api-logs",
+        Item: marshall(item, { removeUndefinedValues: true })
+      });
+
+      await dynamoClient.send(command);
+      console.log("Log saved to DynamoDB.");
+
+      return res.status(200).json(updatedBook);
+    } catch(error) {
+      return res.status(500).json({
+        error: 'Ocorreu um erro no servidor.',
+        details: error.message
+      })
+    }
+  }
+
+  async test_index(req, res){
+    const books = await Book.findAll();
+    return res.status(200).json({books});
+  }
 }
 
 export default new BookController();
