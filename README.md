@@ -1,10 +1,11 @@
 # Configurando chaves AWS
 É necessário conseguir as chaves do AWS CLI para preencher o seu .env. Para isso inicie uma sessão na AWS, clique em AWS Details e depois clique em Show do lado de AWS CLI.
+Também é necessário ter uma tabela no dynamodb.
 
 # Para rodar a aplicação
 
 ```bash
-docker compose up -d
+docker compose up --build -d
 docker exec -it soft_nuvem_trabalho_web-1 npx sequelize-cli db:create
 docker exec -it soft_nuvem_trabalho_web-1 npx sequelize-cli db:migrate
 ```
